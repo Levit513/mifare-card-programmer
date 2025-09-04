@@ -83,17 +83,22 @@
             </div>
             <div class="card-body">
                 <div class="row">
-                    <div class="col-md-4 mb-2">
+                    <div class="col-md-3 mb-2">
                         <a href="{{ url_for('create_program') }}" class="btn btn-primary w-100">
                             <i class="fas fa-plus me-2"></i>Create New Program
                         </a>
                     </div>
-                    <div class="col-md-4 mb-2">
+                    <div class="col-md-3 mb-2">
                         <a href="{{ url_for('sector_editor') }}" class="btn btn-info w-100">
                             <i class="fas fa-edit me-2"></i>Sector Editor
                         </a>
                     </div>
-                    <div class="col-md-4 mb-2">
+                    <div class="col-md-3 mb-2">
+                        <a href="{{ url_for('manage_users') }}" class="btn btn-warning w-100">
+                            <i class="fas fa-users me-2"></i>Manage Users
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-2">
                         <a href="{{ url_for('distribute_program') }}" class="btn btn-success w-100">
                             <i class="fas fa-share me-2"></i>Distribute Program
                         </a>
