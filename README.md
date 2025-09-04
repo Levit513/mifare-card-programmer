@@ -19,8 +19,9 @@ A comprehensive web-based system for programming MIFARE Classic cards using NFC-
 
 ## Deployment
 
-Ready for cloud deployment on Railway, Render, or Netlify.
-Updated: Dependencies optimized for cloud deployment.
+This application is ready for cloud deployment with optimized dependencies for serverless environments. Hardware-dependent packages have been removed and replaced with web-based alternatives.
+
+**Latest Update**: Removed all smartcard library dependencies for full cloud compatibility.
 
 ## Usage
 
