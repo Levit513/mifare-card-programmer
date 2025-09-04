@@ -215,32 +215,26 @@ async function writeMifareSector(sectorNum, sectorData) {
     const blocks = sectorData.blocks || [];
     const keys = sectorData.keys || { keyA: 'FFFFFFFFFFFF', keyB: 'FFFFFFFFFFFF' };
     
-    // Create NDEF message with MIFARE data
-    const records = [];
+    // Create simple text record with MIFARE data
+    const sectorInfo = {
+        sector: sectorNum,
+        blocks: blocks,
+        keys: keys
+    };
     
-    // Add each block as a separate record
-    for (let blockNum = 0; blockNum < blocks.length; blockNum++) {
-        const blockData = blocks[blockNum];
-        if (blockData && blockData.length === 32) {
-            // Convert hex string to bytes
-            const bytes = new Uint8Array(blockData.match(/.{2}/g).map(byte => parseInt(byte, 16)));
-            
-            records.push({
-                recordType: "application/mifare",
-                data: bytes,
-                id: `sector${sectorNum}_block${blockNum}`
-            });
-        }
-    }
+    const textData = JSON.stringify(sectorInfo);
     
-    if (records.length > 0) {
-        try {
-            await ndef.write({ records });
-            console.log(`Successfully wrote sector ${sectorNum}`);
-        } catch (error) {
-            console.error(`Failed to write sector ${sectorNum}:`, error);
-            throw error;
-        }
+    try {
+        await ndef.write({
+            records: [{
+                recordType: "text",
+                data: textData
+            }]
+        });
+        console.log(`Successfully wrote sector ${sectorNum}`);
+    } catch (error) {
+        console.error(`Failed to write sector ${sectorNum}:`, error);
+        throw error;
     }
 }
 
