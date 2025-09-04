@@ -289,6 +289,55 @@ def sector_editor():
     
     return render_template('sector_editor.html')
 
+@app.route('/users')
+@login_required
+def manage_users():
+    """User management page"""
+    if not current_user.is_admin:
+        flash('Access denied')
+        return redirect(url_for('user_dashboard'))
+    
+    users = User.query.filter_by(is_admin=False).all()
+    return render_template('manage_users.html', users=users)
+
+@app.route('/create_user', methods=['GET', 'POST'])
+@login_required
+def create_user():
+    """Create new user"""
+    if not current_user.is_admin:
+        flash('Access denied')
+        return redirect(url_for('user_dashboard'))
+    
+    if request.method == 'POST':
+        username = request.form.get('username')
+        email = request.form.get('email')
+        password = request.form.get('password')
+        
+        # Check if user already exists
+        if User.query.filter_by(username=username).first():
+            flash('Username already exists')
+            return render_template('create_user.html')
+        
+        if User.query.filter_by(email=email).first():
+            flash('Email already exists')
+            return render_template('create_user.html')
+        
+        # Create new user
+        new_user = User(
+            username=username,
+            email=email,
+            password_hash=generate_password_hash(password),
+            is_admin=False
+        )
+        
+        db.session.add(new_user)
+        db.session.commit()
+        
+        flash(f'User {username} created successfully')
+        return redirect(url_for('manage_users'))
+    
+    return render_template('create_user.html')
+
 def create_admin_user():
     """Create default admin user if none exists"""
     # Check if admin user exists
