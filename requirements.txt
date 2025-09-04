@@ -1,5 +1,4 @@
-# Core MIFARE functionality
-pyscard>=2.0.7
+# Core MIFARE functionality (web-based, no hardware dependencies)
 pycryptodome>=3.19.0
 colorama>=0.4.6
 click>=8.1.7
