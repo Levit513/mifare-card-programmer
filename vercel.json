@@ -8,14 +8,6 @@
   ],
   "routes": [
     {
-      "src": "/513programmer/(.*)",
-      "dest": "/$1"
-    },
-    {
-      "src": "/513programmer",
-      "dest": "/"
-    },
-    {
       "src": "/(.*)",
       "dest": "/app.py"
     }
