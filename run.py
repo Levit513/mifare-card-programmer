@@ -6,7 +6,7 @@ Simple runner script to start the Flask application
 
 import os
 from dotenv import load_dotenv
-from app import app, db
+from app import app, db, create_admin_user
 
 # Load environment variables
 load_dotenv()
