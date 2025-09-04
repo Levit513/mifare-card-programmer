@@ -1,35 +1,46 @@
-# Mifare App
+# MIFARE Card Programming System
 
-A Python application for working with MIFARE cards and NFC operations.
+A comprehensive web-based system for programming MIFARE Classic cards using NFC-enabled Android devices.
 
 ## Features
 
-- MIFARE card detection and reading
-- Card data analysis and manipulation
-- Support for various MIFARE card types
-- Integration with card readers
+- **Admin Interface**: Create and manage MIFARE card programs
+- **Secure Distribution**: One-time access tokens with 24-hour expiry
+- **NFC Programming**: Web-based NFC interface for Android Chrome
+- **User Management**: Role-based access control
+- **Sector Editor**: Visual interface for MIFARE card data
+
+## Quick Start
+
+1. Install dependencies: `pip install -r requirements.txt`
+2. Run the application: `python run.py`
+3. Open browser: http://localhost:5000
+4. Login with: admin / admin123
+
+## Deployment
+
+Ready for cloud deployment on Railway, Render, or Netlify.
+
+## Usage
+
+1. **Admin creates programs** using the sector editor
+2. **Admin distributes secure links** to registered users
+3. **Users access links on Android devices**
+4. **NFC programming** writes data to MIFARE cards
+
+## Security
+
+- One-time access tokens
+- 24-hour link expiry
+- Encrypted data transmission
+- Role-based permissions
 
 ## Requirements
 
 - Python 3.8+
-- NFC card reader (compatible with PC/SC)
-- Required Python packages (see requirements.txt)
-
-## Installation
-
-1. Clone or download this project
-2. Install dependencies:
-   ```
-   pip install -r requirements.txt
-   ```
-3. Run the application:
-   ```
-   python main.py
-   ```
-
-## Usage
-
-[Add usage instructions here]
+- Android device with NFC
+- Chrome browser on Android
+- MIFARE Classic cards
 
 ## Project Structure
 
