@@ -24,6 +24,9 @@ from mifare import CardReader, MifareUtils
 
 app = Flask(__name__)
 
+# Configure for subdirectory deployment
+app.config['APPLICATION_ROOT'] = '/513programmer'
+
 # Make datetime available in templates
 @app.context_processor
 def inject_datetime():

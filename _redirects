@@ -1,0 +1,3 @@
+# Railway custom domain redirects for 513solutions.com/513programmer
+/513programmer/* https://mifare-card-programmer-production.up.railway.app/:splat 200
+/513programmer https://mifare-card-programmer-production.up.railway.app/ 200
