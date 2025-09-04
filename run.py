@@ -15,17 +15,15 @@ if __name__ == '__main__':
     # Create database tables if they don't exist
     with app.app_context():
         db.create_all()
-        print("Database initialized successfully")
+        create_admin_user()
     
     # Get configuration from environment
     host = os.environ.get('FLASK_HOST', '0.0.0.0')
-    port = int(os.environ.get('FLASK_PORT', 5000))
-    debug = os.environ.get('FLASK_DEBUG', 'True').lower() == 'true'
+    port = int(os.environ.get('PORT', 5000))
+    debug = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
     
     print(f"Starting MIFARE Card Programming System...")
-    print(f"Access the application at: https://localhost:{port}")
+    print(f"Access the application at: http://localhost:{port}")
     print(f"Admin login: admin / admin123")
-    print(f"Note: HTTPS enabled for Web NFC API compatibility")
     
-    # Enable HTTPS for Web NFC API
-    app.run(host=host, port=port, debug=debug, ssl_context='adhoc')
+    app.run(host=host, port=port, debug=debug)
