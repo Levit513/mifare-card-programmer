@@ -142,15 +142,19 @@ async function startProgramming() {
 
 async function startNFCProgramming() {
     try {
+        console.log('Initializing NFC programming...');
         const ndef = new NDEFReader();
         
         // Request NFC permission first
+        console.log('Requesting NFC scan permission...');
         await ndef.scan();
+        console.log('NFC scan permission granted, waiting for card...');
         
         updateStatus('Hold your MIFARE card near the device...');
         
         ndef.addEventListener('reading', async (event) => {
             updateStatus('Card detected! Programming...');
+            console.log('NFC card detected, starting programming sequence');
             
             try {
                 // Stop scanning to prevent interference
@@ -163,6 +167,7 @@ async function startNFCProgramming() {
                 for (let i = 0; i < sectors.length; i++) {
                     const [sectorNum, sectorData] = sectors[i];
                     updateStatus(`Programming sector ${sectorNum}...`);
+                    console.log(`\n=== Starting sector ${sectorNum} programming ===`);
                     
                     // Validate sector data before writing
                     if (!sectorData.blocks || sectorData.blocks.length === 0) {
@@ -176,10 +181,18 @@ async function startNFCProgramming() {
                     }
                     
                     console.log(`Programming sector ${sectorNum} with ${sectorData.blocks.length} blocks`);
-                    await writeMifareSector(parseInt(sectorNum), sectorData);
+                    
+                    try {
+                        await writeMifareSector(parseInt(sectorNum), sectorData);
+                        console.log(`✓ Sector ${sectorNum} completed successfully`);
+                    } catch (sectorError) {
+                        console.error(`✗ Sector ${sectorNum} failed:`, sectorError);
+                        throw sectorError;
+                    }
                     
                     // Add delay between sector writes
                     if (i < sectors.length - 1) {
+                        console.log(`Waiting 500ms before next sector...`);
                         await new Promise(resolve => setTimeout(resolve, 500));
                     }
                     
@@ -267,7 +280,16 @@ async function writeMifareSector(sectorNum, sectorData) {
         
         const message = { records };
         
-        await ndef.write(message);
+        console.log(`Attempting to write sector ${sectorNum} with ${records.length} records...`);
+        console.log('Write message:', message);
+        
+        // Add timeout to prevent hanging
+        const writePromise = ndef.write(message);
+        const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Write timeout after 10 seconds')), 10000)
+        );
+        
+        await Promise.race([writePromise, timeoutPromise]);
         console.log(`Successfully wrote sector ${sectorNum} with ${blocks.length} blocks`);
         
     } catch (error) {
