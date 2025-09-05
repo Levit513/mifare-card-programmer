@@ -221,67 +221,41 @@ async function startNFCProgramming() {
 }
 
 async function writeMifareSector(sectorNum, sectorData) {
-    // Create NDEF record for MIFARE sector data
+    // IMPORTANT: Web NFC API cannot write raw MIFARE Classic sectors
+    // It only supports NDEF message writing, not low-level block programming
+    
+    console.log(`NOTICE: Web NFC API limitation - cannot write raw MIFARE Classic data`);
+    console.log(`Sector ${sectorNum} data that would be written:`, sectorData);
+    
+    // Create a comprehensive NDEF message with all MIFARE data for reference
     const ndef = new NDEFReader();
     
     // Prepare sector data for writing
     const blocks = sectorData.blocks || [];
     const keys = sectorData.keys || { keyA: 'FFFFFFFFFFFF', keyB: 'FFFFFFFFFFFF' };
     
-    console.log(`Writing sector ${sectorNum} with data:`, sectorData);
+    console.log(`Attempting to write NDEF representation of sector ${sectorNum}...`);
     
     try {
-        // Convert MIFARE block data to binary format for proper programming
-        const records = [];
-        
-        // Add each block as a binary record
-        for (let blockNum = 0; blockNum < blocks.length; blockNum++) {
-            // Skip sector 0, block 0 (manufacturer block) unless explicitly programmed
-            if (sectorNum === 0 && blockNum === 0) {
-                // Check if block 0 has been explicitly modified from default
-                const blockData = blocks[blockNum];
-                if (!blockData || blockData === '' || blockData === '00000000000000000000000000000000') {
-                    console.log(`Skipping sector 0, block 0 (manufacturer block) - not explicitly programmed`);
-                    continue;
-                }
-                console.log(`Programming sector 0, block 0 - explicitly set with data: ${blockData}`);
-            }
-            
-            const blockData = blocks[blockNum];
-            if (blockData && blockData.length === 32) { // 32 hex chars = 16 bytes
-                // Convert hex string to Uint8Array
-                const bytes = new Uint8Array(
-                    blockData.match(/.{2}/g).map(byte => parseInt(byte, 16))
-                );
-                
-                records.push({
-                    recordType: "application/octet-stream",
-                    data: bytes,
-                    id: `mifare_s${sectorNum}_b${blockNum}`
-                });
-                
-                console.log(`Block ${blockNum}: ${blockData} -> [${Array.from(bytes).join(', ')}]`);
-            }
-        }
-        
-        // Add sector keys as metadata
-        const keyData = JSON.stringify({
+        // Create a single comprehensive NDEF record with all sector data
+        const sectorInfo = {
+            type: 'MIFARE_CLASSIC_SECTOR',
             sector: sectorNum,
-            keyA: keys.keyA,
-            keyB: keys.keyB,
-            blockCount: blocks.length
-        });
+            blocks: blocks,
+            keys: keys,
+            timestamp: new Date().toISOString(),
+            note: 'This is NDEF data representation - not raw MIFARE programming'
+        };
         
-        records.push({
-            recordType: "text",
-            data: keyData,
-            id: `mifare_s${sectorNum}_keys`
-        });
+        const message = {
+            records: [{
+                recordType: "text",
+                data: JSON.stringify(sectorInfo, null, 2),
+                id: `mifare_sector_${sectorNum}`
+            }]
+        };
         
-        const message = { records };
-        
-        console.log(`Attempting to write sector ${sectorNum} with ${records.length} records...`);
-        console.log('Write message:', message);
+        console.log(`Writing NDEF message for sector ${sectorNum}:`, message);
         
         // Add timeout to prevent hanging
         const writePromise = ndef.write(message);
@@ -290,10 +264,15 @@ async function writeMifareSector(sectorNum, sectorData) {
         );
         
         await Promise.race([writePromise, timeoutPromise]);
-        console.log(`Successfully wrote sector ${sectorNum} with ${blocks.length} blocks`);
+        console.log(`✓ NDEF message written for sector ${sectorNum} (not raw MIFARE data)`);
+        
+        // Add warning about limitation
+        console.warn(`⚠️  LIMITATION: This writes NDEF data, not actual MIFARE Classic sectors`);
+        console.warn(`⚠️  For true MIFARE programming, you need specialized hardware/software`);
         
     } catch (error) {
-        console.error(`Failed to write sector ${sectorNum}:`, error);
+        console.error(`Failed to write NDEF for sector ${sectorNum}:`, error);
+        
         // Provide more specific error information
         if (error.name === 'NotAllowedError') {
             throw new Error('NFC permission denied. Please allow NFC access.');
@@ -301,6 +280,8 @@ async function writeMifareSector(sectorNum, sectorData) {
             throw new Error('NFC not supported on this device or browser.');
         } else if (error.name === 'NotReadableError') {
             throw new Error('NFC card not readable. Try repositioning the card.');
+        } else if (error.message.includes('timeout')) {
+            throw new Error('NFC write timeout - card may not support NDEF or is incompatible.');
         } else {
             throw new Error(`NFC write failed: ${error.message || 'Unknown error'}`);
         }
