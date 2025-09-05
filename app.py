@@ -240,8 +240,7 @@ def receive_program(token):
     if distribution.expires_at < datetime.utcnow():
         return render_template('error.html', message='Program link has expired')
     
-    if distribution.is_used:
-        return render_template('error.html', message='Program has already been used')
+    # Allow multiple uses - remove one-time restriction
     
     program = distribution.program
     return render_template('receive_program.html', 
@@ -258,15 +257,13 @@ def get_program_data(token):
         if distribution.expires_at < datetime.utcnow():
             return jsonify({'error': 'Token expired'}), 403
             
-        if distribution.is_used:
-            return jsonify({'error': 'Token already used'}), 403
+        # Remove one-time use restriction - allow multiple redistributions
         
         program = distribution.program
         if not program:
             return jsonify({'error': 'Program not found - data may have been lost'}), 404
         
-        # Mark as used (one-time use)
-        distribution.is_used = True
+        # Update last accessed time (allow multiple uses)
         distribution.used_at = datetime.utcnow()
         db.session.commit()
         
@@ -307,18 +304,67 @@ def sector_editor():
 def manage_users():
     """User management page"""
     if not current_user.is_admin:
-        flash('Access denied')
-        return redirect(url_for('user_dashboard'))
+        flash('Access denied. Admin privileges required.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    users = User.query.all()
+    return render_template('manage_users.html', users=users)
+
+@app.route('/manage_programs')
+@login_required
+def manage_programs():
+    if not current_user.is_admin:
+        flash('Access denied. Admin privileges required.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    programs = MifareProgram.query.all()
+    return render_template('manage_programs.html', programs=programs)
+
+@app.route('/redistribute_program/<int:program_id>', methods=['GET', 'POST'])
+@login_required
+def redistribute_program(program_id):
+    if not current_user.is_admin:
+        flash('Access denied. Admin privileges required.', 'error')
+        return redirect(url_for('dashboard'))
+    
+    program = MifareProgram.query.get_or_404(program_id)
+    
+    if request.method == 'POST':
+        user_id = request.form.get('user_id')
+        user = User.query.get(user_id)
+        
+        if not user:
+            flash('User not found', 'error')
+            return redirect(url_for('redistribute_program', program_id=program_id))
+        
+        # Create new distribution for existing program
+        access_token = secrets.token_urlsafe(32)
+        expires_at = datetime.utcnow() + timedelta(hours=24)
+        
+        distribution = ProgramDistribution(
+            program_id=program.id,
+            user_id=user.id,
+            access_token=access_token,
+            expires_at=expires_at,
+            is_used=False
+        )
+        
+        db.session.add(distribution)
+        db.session.commit()
+        
+        flash(f'Program "{program.name}" redistributed to {user.username}', 'success')
+        return redirect(url_for('manage_programs'))
     
     users = User.query.filter_by(is_admin=False).all()
-    return render_template('manage_users.html', users=users)
+    return render_template('redistribute_program.html', program=program, users=users)
 
 @app.route('/create_user', methods=['GET', 'POST'])
 @login_required
 def create_user():
     """Create new user"""
     if not current_user.is_admin:
-        flash('Access denied')
+        flash('Access denied. Admin privileges required.', 'error')
+        return redirect(url_for('dashboard'))
         return redirect(url_for('user_dashboard'))
     
     if request.method == 'POST':
