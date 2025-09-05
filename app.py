@@ -240,11 +240,38 @@ def receive_program(token):
     if distribution.expires_at < datetime.utcnow():
         return render_template('error.html', message='Program link has expired')
     
-    # Allow multiple uses - remove one-time restriction
+    # Check if programming was already completed successfully
+    if distribution.is_used:
+        return render_template('error.html', message='This program has already been successfully programmed. Request a new distribution to program again.')
     
     program = distribution.program
     return render_template('receive_program.html', 
                          distribution=distribution, program=program)
+
+@app.route('/api/programming_success/<token>', methods=['POST'])
+def mark_programming_success(token):
+    """Mark a distribution as successfully programmed"""
+    try:
+        distribution = ProgramDistribution.query.filter_by(access_token=token).first()
+        
+        if not distribution:
+            return jsonify({'error': 'Token not found'}), 404
+        
+        if distribution.expires_at < datetime.utcnow():
+            return jsonify({'error': 'Token expired'}), 403
+            
+        if distribution.is_used:
+            return jsonify({'error': 'Already marked as used'}), 403
+        
+        # Mark as successfully programmed
+        distribution.is_used = True
+        distribution.used_at = datetime.utcnow()
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': 'Programming marked as successful'})
+        
+    except Exception as e:
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
 
 @app.route('/api/program_data/<token>')
 def get_program_data(token):
@@ -257,13 +284,15 @@ def get_program_data(token):
         if distribution.expires_at < datetime.utcnow():
             return jsonify({'error': 'Token expired'}), 403
             
-        # Remove one-time use restriction - allow multiple redistributions
+        # Check if programming was already completed successfully
+        if distribution.is_used:
+            return jsonify({'error': 'This program has already been successfully programmed. Request a new distribution to program again.'}), 403
         
         program = distribution.program
         if not program:
             return jsonify({'error': 'Program not found - data may have been lost'}), 404
         
-        # Update last accessed time (allow multiple uses)
+        # Update last accessed time but don't mark as used yet (wait for success confirmation)
         distribution.used_at = datetime.utcnow()
         db.session.commit()
         

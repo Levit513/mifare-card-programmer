@@ -128,7 +128,7 @@ async function startProgramming() {
             await startNFCProgramming();
         } else {
             // Fallback for browsers without NFC support
-            simulateProgramming();
+            await simulateProgramming();
         }
         
     } catch (error) {
@@ -170,6 +170,9 @@ async function startNFCProgramming() {
                 
                 updateStatus('Programming complete!');
                 updateProgress(100);
+                
+                // Mark programming as successful in database
+                await markProgrammingSuccess();
                 
                 // Show success
                 document.getElementById('nfcInterface').style.display = 'none';
@@ -231,21 +234,30 @@ async function writeMifareSector(sectorNum, sectorData) {
     }
 }
 
-function simulateProgramming() {
+async function simulateProgramming() {
     // Fallback simulation for non-NFC browsers
     updateStatus('Simulating programming (NFC not available)...');
     
-    let progress = 0;
-    const interval = setInterval(() => {
-        progress += 10;
-        updateProgress(progress);
-        
-        if (progress >= 100) {
-            clearInterval(interval);
-            document.getElementById('nfcInterface').style.display = 'none';
-            document.getElementById('successMessage').style.display = 'block';
-        }
-    }, 300);
+    return new Promise(async (resolve) => {
+        let progress = 0;
+        const interval = setInterval(async () => {
+            progress += 10;
+            updateProgress(progress);
+            
+            if (progress >= 100) {
+                clearInterval(interval);
+                updateStatus('Simulation complete!');
+                
+                // Mark programming as successful in database
+                await markProgrammingSuccess();
+                
+                // Show success
+                document.getElementById('nfcInterface').style.display = 'none';
+                document.getElementById('successMessage').style.display = 'block';
+                resolve();
+            }
+        }, 200);
+    });
 }
 
 function updateProgress(percent) {
@@ -254,6 +266,25 @@ function updateProgress(percent) {
 
 function updateStatus(text) {
     document.getElementById('statusText').innerHTML = `<small class="text-muted">${text}</small>`;
+}
+
+async function markProgrammingSuccess() {
+    try {
+        const response = await fetch('/api/programming_success/{{ distribution.access_token }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            console.error('Failed to mark programming as successful');
+        } else {
+            console.log('Programming marked as successful in database');
+        }
+    } catch (error) {
+        console.error('Error marking programming success:', error);
+    }
 }
 
 function showError(message) {
