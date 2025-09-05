@@ -113,7 +113,8 @@ async function startProgramming() {
         const response = await fetch('/api/program_data/{{ distribution.access_token }}');
         
         if (!response.ok) {
-            throw new Error('Failed to fetch programming data');
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to fetch programming data');
         }
         
         programmingData = await response.json();

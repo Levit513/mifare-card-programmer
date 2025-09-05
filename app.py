@@ -249,24 +249,37 @@ def receive_program(token):
 
 @app.route('/api/program_data/<token>')
 def get_program_data(token):
-    distribution = ProgramDistribution.query.filter_by(access_token=token).first()
-    
-    if not distribution or distribution.expires_at < datetime.utcnow() or distribution.is_used:
-        return jsonify({'error': 'Invalid or expired token'}), 403
-    
-    # Mark as used (one-time use)
-    distribution.is_used = True
-    distribution.used_at = datetime.utcnow()
-    db.session.commit()
-    
-    program = distribution.program
-    sector_data = json.loads(program.sector_data)
-    
-    return jsonify({
-        'program_name': program.name,
-        'sector_data': sector_data,
-        'timestamp': datetime.utcnow().isoformat()
-    })
+    try:
+        distribution = ProgramDistribution.query.filter_by(access_token=token).first()
+        
+        if not distribution:
+            return jsonify({'error': 'Token not found - program may have been lost due to database restart'}), 404
+        
+        if distribution.expires_at < datetime.utcnow():
+            return jsonify({'error': 'Token expired'}), 403
+            
+        if distribution.is_used:
+            return jsonify({'error': 'Token already used'}), 403
+        
+        program = distribution.program
+        if not program:
+            return jsonify({'error': 'Program not found - data may have been lost'}), 404
+        
+        # Mark as used (one-time use)
+        distribution.is_used = True
+        distribution.used_at = datetime.utcnow()
+        db.session.commit()
+        
+        sector_data = json.loads(program.sector_data)
+        
+        return jsonify({
+            'program_name': program.name,
+            'sector_data': sector_data,
+            'timestamp': datetime.utcnow().isoformat()
+        })
+        
+    except Exception as e:
+        return jsonify({'error': f'Database error: {str(e)}'}), 500
 
 @app.route('/api/scan_card')
 @login_required
