@@ -140,71 +140,49 @@ async function startNFCProgramming() {
     try {
         const ndef = new NDEFReader();
         
-        // Request NFC permission
+        // Request NFC permission first
         await ndef.scan();
         
-        updateStatus('NFC ready - place MIFARE card on device');
+        updateStatus('Hold your MIFARE card near the device...');
         
-        ndef.addEventListener('reading', async ({ message, serialNumber }) => {
-            updateStatus('MIFARE card detected - programming...');
-            updateProgress(25);
+        ndef.addEventListener('reading', async (event) => {
+            updateStatus('Card detected! Programming...');
             
             try {
-                // Program actual MIFARE card
-                await programMifareCard(serialNumber);
+                // Stop scanning to prevent interference
+                ndef.addEventListener('reading', () => {});
+                
+                // Program each sector with delay between writes
+                const sectors = Object.entries(programmingData.sector_data);
+                for (let i = 0; i < sectors.length; i++) {
+                    const [sectorNum, sectorData] = sectors[i];
+                    updateStatus(`Programming sector ${sectorNum}...`);
+                    
+                    await writeMifareSector(parseInt(sectorNum), sectorData);
+                    
+                    // Add delay between sector writes
+                    if (i < sectors.length - 1) {
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                    }
+                    
+                    updateProgress(((i + 1) / sectors.length) * 100);
+                }
+                
+                updateStatus('Programming complete!');
+                updateProgress(100);
+                
+                // Show success
+                document.getElementById('nfcInterface').style.display = 'none';
+                document.getElementById('successMessage').style.display = 'block';
                 
             } catch (error) {
-                showError('Programming failed: ' + error.message);
+                throw new Error(`MIFARE programming failed: ${error.message}`);
             }
         });
         
-        ndef.addEventListener('readingerror', () => {
-            showError('NFC read error - please try again');
-        });
-        
     } catch (error) {
-        if (error.name === 'NotAllowedError') {
-            showError('NFC permission denied. Please enable NFC and try again.');
-        } else {
-            showError('NFC error: ' + error.message);
-        }
-    }
-}
-
-async function programMifareCard(serialNumber) {
-    updateProgress(50);
-    updateStatus('Authenticating MIFARE card...');
-    
-    const sectors = Object.keys(programmingData.sector_data);
-    
-    try {
-        // Write each sector to the MIFARE card
-        for (let i = 0; i < sectors.length; i++) {
-            const sectorNum = sectors[i];
-            const sectorData = programmingData.sector_data[sectorNum];
-            
-            const progress = 50 + (i / sectors.length) * 45;
-            updateProgress(progress);
-            updateStatus(`Writing sector ${sectorNum}...`);
-            
-            // Write sector data using Web NFC API
-            await writeMifareSector(sectorNum, sectorData);
-            
-            // Small delay between sectors
-            await new Promise(resolve => setTimeout(resolve, 100));
-        }
-        
-        updateProgress(100);
-        updateStatus('Verifying written data...');
-        
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        // Show success
-        document.getElementById('nfcInterface').style.display = 'none';
-        document.getElementById('successMessage').style.display = 'block';
-        
-    } catch (error) {
-        throw new Error(`MIFARE programming failed: ${error.message}`);
+        updateStatus(`Programming failed: ${error.message}`);
+        console.error('NFC Programming error:', error);
     }
 }
 
@@ -226,16 +204,30 @@ async function writeMifareSector(sectorNum, sectorData) {
     const textData = JSON.stringify(sectorInfo);
     
     try {
-        await ndef.write({
+        // Use proper NDEF message format
+        const message = {
             records: [{
                 recordType: "text",
-                data: textData
+                data: textData,
+                encoding: "utf-8",
+                lang: "en"
             }]
-        });
+        };
+        
+        await ndef.write(message);
         console.log(`Successfully wrote sector ${sectorNum}`);
     } catch (error) {
         console.error(`Failed to write sector ${sectorNum}:`, error);
-        throw error;
+        // Provide more specific error information
+        if (error.name === 'NotAllowedError') {
+            throw new Error('NFC permission denied. Please allow NFC access.');
+        } else if (error.name === 'NotSupportedError') {
+            throw new Error('NFC not supported on this device or browser.');
+        } else if (error.name === 'NotReadableError') {
+            throw new Error('NFC card not readable. Try repositioning the card.');
+        } else {
+            throw new Error(`NFC write failed: ${error.message || 'Unknown error'}`);
+        }
     }
 }
 
