@@ -170,6 +170,11 @@ async function startNFCProgramming() {
                         continue;
                     }
                     
+                    // Special handling for sector 0 - warn about manufacturer block
+                    if (parseInt(sectorNum) === 0) {
+                        console.log(`Programming sector 0 - manufacturer block protection active`);
+                    }
+                    
                     console.log(`Programming sector ${sectorNum} with ${sectorData.blocks.length} blocks`);
                     await writeMifareSector(parseInt(sectorNum), sectorData);
                     
@@ -218,6 +223,17 @@ async function writeMifareSector(sectorNum, sectorData) {
         
         // Add each block as a binary record
         for (let blockNum = 0; blockNum < blocks.length; blockNum++) {
+            // Skip sector 0, block 0 (manufacturer block) unless explicitly programmed
+            if (sectorNum === 0 && blockNum === 0) {
+                // Check if block 0 has been explicitly modified from default
+                const blockData = blocks[blockNum];
+                if (!blockData || blockData === '' || blockData === '00000000000000000000000000000000') {
+                    console.log(`Skipping sector 0, block 0 (manufacturer block) - not explicitly programmed`);
+                    continue;
+                }
+                console.log(`Programming sector 0, block 0 - explicitly set with data: ${blockData}`);
+            }
+            
             const blockData = blocks[blockNum];
             if (blockData && blockData.length === 32) { // 32 hex chars = 16 bytes
                 // Convert hex string to Uint8Array
