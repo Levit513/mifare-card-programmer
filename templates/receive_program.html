@@ -123,6 +123,10 @@ async function startProgramming() {
         document.querySelector('.spinner-border').parentElement.style.display = 'none';
         document.getElementById('nfcInterface').style.display = 'block';
         
+        // Debug: Log the programming data structure
+        console.log('Programming data received:', programmingData);
+        console.log('Sector data structure:', programmingData.sector_data);
+        
         // Start NFC programming
         if (nfcSupported) {
             await startNFCProgramming();
@@ -154,10 +158,19 @@ async function startNFCProgramming() {
                 
                 // Program each sector with delay between writes
                 const sectors = Object.entries(programmingData.sector_data);
+                console.log(`Programming ${sectors.length} sectors:`, sectors.map(([num, data]) => `Sector ${num}: ${data.blocks?.length || 0} blocks`));
+                
                 for (let i = 0; i < sectors.length; i++) {
                     const [sectorNum, sectorData] = sectors[i];
                     updateStatus(`Programming sector ${sectorNum}...`);
                     
+                    // Validate sector data before writing
+                    if (!sectorData.blocks || sectorData.blocks.length === 0) {
+                        console.warn(`Sector ${sectorNum} has no block data, skipping`);
+                        continue;
+                    }
+                    
+                    console.log(`Programming sector ${sectorNum} with ${sectorData.blocks.length} blocks`);
                     await writeMifareSector(parseInt(sectorNum), sectorData);
                     
                     // Add delay between sector writes
@@ -197,28 +210,50 @@ async function writeMifareSector(sectorNum, sectorData) {
     const blocks = sectorData.blocks || [];
     const keys = sectorData.keys || { keyA: 'FFFFFFFFFFFF', keyB: 'FFFFFFFFFFFF' };
     
-    // Create simple text record with MIFARE data
-    const sectorInfo = {
-        sector: sectorNum,
-        blocks: blocks,
-        keys: keys
-    };
-    
-    const textData = JSON.stringify(sectorInfo);
+    console.log(`Writing sector ${sectorNum} with data:`, sectorData);
     
     try {
-        // Use proper NDEF message format
-        const message = {
-            records: [{
-                recordType: "text",
-                data: textData,
-                encoding: "utf-8",
-                lang: "en"
-            }]
-        };
+        // Convert MIFARE block data to binary format for proper programming
+        const records = [];
+        
+        // Add each block as a binary record
+        for (let blockNum = 0; blockNum < blocks.length; blockNum++) {
+            const blockData = blocks[blockNum];
+            if (blockData && blockData.length === 32) { // 32 hex chars = 16 bytes
+                // Convert hex string to Uint8Array
+                const bytes = new Uint8Array(
+                    blockData.match(/.{2}/g).map(byte => parseInt(byte, 16))
+                );
+                
+                records.push({
+                    recordType: "application/octet-stream",
+                    data: bytes,
+                    id: `mifare_s${sectorNum}_b${blockNum}`
+                });
+                
+                console.log(`Block ${blockNum}: ${blockData} -> [${Array.from(bytes).join(', ')}]`);
+            }
+        }
+        
+        // Add sector keys as metadata
+        const keyData = JSON.stringify({
+            sector: sectorNum,
+            keyA: keys.keyA,
+            keyB: keys.keyB,
+            blockCount: blocks.length
+        });
+        
+        records.push({
+            recordType: "text",
+            data: keyData,
+            id: `mifare_s${sectorNum}_keys`
+        });
+        
+        const message = { records };
         
         await ndef.write(message);
-        console.log(`Successfully wrote sector ${sectorNum}`);
+        console.log(`Successfully wrote sector ${sectorNum} with ${blocks.length} blocks`);
+        
     } catch (error) {
         console.error(`Failed to write sector ${sectorNum}:`, error);
         // Provide more specific error information
