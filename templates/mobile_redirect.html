@@ -23,10 +23,21 @@
                     <h5>RF Access App Required</h5>
                     <p class="text-muted mb-4">The RF Access app is required to program your MIFARE card.</p>
                     
+                    <div class="alert alert-info mb-3">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Installation Steps:</strong>
+                        <ol class="mb-0 mt-2">
+                            <li>Download the APK from GitHub</li>
+                            <li>Enable "Install from Unknown Sources" in Android settings</li>
+                            <li>Install the APK file</li>
+                            <li>Return here and click "Try Opening App Again"</li>
+                        </ol>
+                    </div>
+                    
                     <div class="d-grid gap-2">
-                        <a href="https://play.google.com/store/apps/details?id=com.example.rfaccess" 
-                           class="btn btn-success btn-lg" target="_blank">
-                            <i class="fab fa-google-play me-2"></i>Install from Play Store
+                        <a href="https://github.com/Levit513/RF-Access/releases/latest" 
+                           class="btn btn-primary btn-lg" target="_blank" id="downloadApk">
+                            <i class="fab fa-github me-2"></i>Download RF Access APK
                         </a>
                         <button class="btn btn-outline-primary" onclick="tryAppAgain()">
                             <i class="fas fa-redo me-2"></i>Try Opening App Again
@@ -34,6 +45,13 @@
                         <button class="btn btn-outline-secondary" onclick="showWebInterface()">
                             <i class="fas fa-globe me-2"></i>Use Web Interface Instead
                         </button>
+                    </div>
+                    
+                    <div class="mt-3">
+                        <small class="text-muted">
+                            <i class="fas fa-shield-alt me-1"></i>
+                            After installing, bookmark this page to easily return to your programming link.
+                        </small>
                     </div>
                 </div>
 
@@ -140,12 +158,24 @@ document.addEventListener('DOMContentLoaded', function() {
     setTimeout(attemptAppRedirect, 500);
 });
 
-// Fallback: Show install options if nothing happens after 5 seconds
+// Faster fallback: Show install options if nothing happens after 2 seconds
 setTimeout(() => {
     if (document.getElementById('redirecting').style.display !== 'none') {
-        console.log('Fallback: Showing install options after 5 seconds');
+        console.log('App not found, showing install options');
         showAppNotInstalled();
     }
-}, 5000);
+}, 2000);
+
+// Add download tracking
+document.addEventListener('DOMContentLoaded', function() {
+    const downloadBtn = document.getElementById('downloadApk');
+    if (downloadBtn) {
+        downloadBtn.addEventListener('click', function() {
+            // Store that user initiated download
+            localStorage.setItem('rfaccess_download_initiated', 'true');
+            localStorage.setItem('rfaccess_return_url', window.location.href);
+        });
+    }
+});
 </script>
 {% endblock %}
