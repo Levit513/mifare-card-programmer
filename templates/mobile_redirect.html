@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block title %}Opening RF Access App - MIFARE System{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="card shadow">
+            <div class="card-header text-center bg-primary text-white">
+                <h4><i class="fas fa-mobile-alt me-2"></i>Opening RF Access App</h4>
+            </div>
+            <div class="card-body text-center">
+                <div id="redirecting" class="mb-4">
+                    <div class="spinner-border text-primary mb-3" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <h5>Redirecting to RF Access App...</h5>
+                    <p class="text-muted">Please wait while we open the RF Access app for card programming.</p>
+                </div>
+
+                <div id="appNotInstalled" style="display: none;" class="mb-4">
+                    <i class="fas fa-download fa-3x text-warning mb-3"></i>
+                    <h5>RF Access App Required</h5>
+                    <p class="text-muted mb-4">The RF Access app is required to program your MIFARE card.</p>
+                    
+                    <div class="d-grid gap-2">
+                        <a href="https://play.google.com/store/apps/details?id=com.example.rfaccess" 
+                           class="btn btn-success btn-lg" target="_blank">
+                            <i class="fab fa-google-play me-2"></i>Install from Play Store
+                        </a>
+                        <button class="btn btn-outline-primary" onclick="tryAppAgain()">
+                            <i class="fas fa-redo me-2"></i>Try Opening App Again
+                        </button>
+                        <button class="btn btn-outline-secondary" onclick="showWebInterface()">
+                            <i class="fas fa-globe me-2"></i>Use Web Interface Instead
+                        </button>
+                    </div>
+                </div>
+
+                <div id="webInterface" style="display: none;">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Note:</strong> Web interface has limitations. For full MIFARE programming, please use the RF Access app.
+                    </div>
+                    <div class="d-grid">
+                        <a href="/program/{{ token }}?force_web=1" class="btn btn-primary">
+                            <i class="fas fa-globe me-2"></i>Continue with Web Interface
+                        </a>
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <small class="text-muted">
+                        <i class="fas fa-shield-alt me-1"></i>
+                        Secure programming • Token: {{ token[:8] }}...
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let redirectAttempts = 0;
+const maxAttempts = 3;
+const appUrl = "{{ app_url }}";
+const playStoreUrl = "https://play.google.com/store/apps/details?id=com.example.rfaccess";
+
+function attemptAppRedirect() {
+    redirectAttempts++;
+    console.log(`App redirect attempt ${redirectAttempts}/${maxAttempts}`);
+    
+    // Method 1: Direct scheme redirect
+    window.location.href = appUrl;
+    
+    // Method 2: Intent URL for Android (fallback)
+    setTimeout(() => {
+        const intentUrl = `intent://open?username={{ distribution.user.username if distribution.user else 'user_from_web' }}&cardData={{ token }}&action=program#Intent;scheme=rfaccess;package=com.example.rfaccess;S.browser_fallback_url=${encodeURIComponent(playStoreUrl)};end`;
+        
+        // Create invisible iframe to trigger intent
+        const iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        iframe.src = intentUrl;
+        document.body.appendChild(iframe);
+        
+        // Clean up iframe after attempt
+        setTimeout(() => {
+            document.body.removeChild(iframe);
+        }, 1000);
+    }, 500);
+    
+    // Method 3: Check if app opened successfully
+    setTimeout(() => {
+        // If we're still on this page after 3 seconds, app likely didn't open
+        if (document.visibilityState === 'visible') {
+            console.log('App redirect may have failed, showing install options');
+            showAppNotInstalled();
+        }
+    }, 3000);
+}
+
+function showAppNotInstalled() {
+    document.getElementById('redirecting').style.display = 'none';
+    document.getElementById('appNotInstalled').style.display = 'block';
+}
+
+function tryAppAgain() {
+    document.getElementById('appNotInstalled').style.display = 'none';
+    document.getElementById('redirecting').style.display = 'block';
+    
+    if (redirectAttempts < maxAttempts) {
+        setTimeout(attemptAppRedirect, 1000);
+    } else {
+        showWebInterface();
+    }
+}
+
+function showWebInterface() {
+    document.getElementById('redirecting').style.display = 'none';
+    document.getElementById('appNotInstalled').style.display = 'none';
+    document.getElementById('webInterface').style.display = 'block';
+}
+
+// Handle page visibility changes (user returns from app attempt)
+document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'visible' && redirectAttempts > 0) {
+        console.log('User returned to page, app may not have opened');
+        setTimeout(showAppNotInstalled, 1000);
+    }
+});
+
+// Start redirect attempt when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Starting mobile app redirect for token: {{ token }}');
+    console.log('App URL: ' + appUrl);
+    
+    // Small delay to ensure page is fully loaded
+    setTimeout(attemptAppRedirect, 500);
+});
+
+// Fallback: Show install options if nothing happens after 5 seconds
+setTimeout(() => {
+    if (document.getElementById('redirecting').style.display !== 'none') {
+        console.log('Fallback: Showing install options after 5 seconds');
+        showAppNotInstalled();
+    }
+}, 5000);
+</script>
+{% endblock %}

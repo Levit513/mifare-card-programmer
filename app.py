@@ -244,6 +244,25 @@ def receive_program(token):
     if distribution.is_used:
         return render_template('error.html', message='This program has already been successfully programmed. Request a new distribution to program again.')
     
+    # Mobile detection and app redirect (unless forced to use web)
+    force_web = request.args.get('force_web') == '1'
+    user_agent = request.headers.get('User-Agent', '').lower()
+    is_mobile = any(device in user_agent for device in ['android', 'iphone', 'ipad', 'mobile', 'webos', 'blackberry'])
+    
+    if is_mobile and not force_web:
+        # Extract username from distribution or use default
+        username = distribution.user.username if distribution.user else 'user_from_web'
+        
+        # Create app deep link with token as card data
+        app_url = f"rfaccess://open?username={username}&cardData={token}&action=program"
+        
+        # Return redirect template that tries app first, then falls back to web
+        return render_template('mobile_redirect.html', 
+                             app_url=app_url, 
+                             token=token,
+                             distribution=distribution, 
+                             program=distribution.program)
+    
     program = distribution.program
     return render_template('receive_program.html', 
                          distribution=distribution, program=program)
