@@ -214,7 +214,10 @@ def distribute_program():
     if form.validate_on_submit():
         # Generate secure access token
         access_token = secrets.token_urlsafe(32)
-        expires_at = datetime.utcnow() + timedelta(hours=24)  # 24-hour expiry
+        expires_at = datetime.utcnow() + timedelta(hours=168)  # 7-day expiry for testing
+        
+        # Debug logging
+        print(f"Creating distribution: token={access_token[:8]}..., expires_at={expires_at}")
         
         distribution = ProgramDistribution(
             program_id=form.program_id.data,
@@ -225,19 +228,30 @@ def distribute_program():
         db.session.add(distribution)
         db.session.commit()
         
-        flash('Program distributed successfully')
+        # Verify token was saved
+        saved_dist = ProgramDistribution.query.filter_by(access_token=access_token).first()
+        print(f"Token saved: {saved_dist is not None}, expires: {saved_dist.expires_at if saved_dist else 'None'}")
+        
+        flash(f'Program distributed successfully. Link expires: {expires_at.strftime("%Y-%m-%d %H:%M UTC")}')
         return redirect(url_for('admin_dashboard'))
     
     return render_template('distribute.html', form=form)
 
 @app.route('/program/<token>')
 def receive_program(token):
+    # Debug logging
+    print(f"Received token: {token[:8]}... at {datetime.utcnow()}")
+    
     distribution = ProgramDistribution.query.filter_by(access_token=token).first()
     
     if not distribution:
+        print(f"Token not found in database: {token[:8]}...")
         return render_template('error.html', message='Invalid or expired program link')
     
+    print(f"Found distribution: expires={distribution.expires_at}, now={datetime.utcnow()}, used={distribution.is_used}")
+    
     if distribution.expires_at < datetime.utcnow():
+        print(f"Token expired: {distribution.expires_at} < {datetime.utcnow()}")
         return render_template('error.html', message='Program link has expired')
     
     # Check if programming was already completed successfully
