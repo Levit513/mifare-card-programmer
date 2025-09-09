@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Mobile Redirect - RF Access</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <div class="container py-4">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card shadow">
+                    <div class="card-body text-center">
+                        <h3 class="mb-4">🔍 Debug Mobile Redirect</h3>
+                        
+                        <div class="alert alert-info">
+                            <h5>System Status Check</h5>
+                            <div id="statusChecks" class="text-start mt-3">
+                                <div id="userAgentCheck">
+                                    <strong>User Agent:</strong> <span id="userAgentValue"></span>
+                                </div>
+                                <div id="mobileCheck" class="mt-2">
+                                    <strong>Mobile Detected:</strong> <span id="mobileValue"></span>
+                                </div>
+                                <div id="appUrlCheck" class="mt-2">
+                                    <strong>App URL:</strong> <span id="appUrlValue"></span>
+                                </div>
+                                <div id="downloadUrlCheck" class="mt-2">
+                                    <strong>Download URL:</strong> <span id="downloadUrlValue"></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row mt-4">
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <h6>Test App Opening</h6>
+                                        <button class="btn btn-primary" onclick="testAppOpen()">
+                                            <i class="fas fa-mobile-alt me-2"></i>Test App Open
+                                        </button>
+                                        <div id="appOpenResult" class="mt-2 small"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <h6>Test APK Download</h6>
+                                        <button class="btn btn-success" onclick="testDownload()">
+                                            <i class="fas fa-download me-2"></i>Test Download
+                                        </button>
+                                        <div id="downloadResult" class="mt-2 small"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="alert alert-secondary mt-4">
+                            <h6>Manual Tests</h6>
+                            <div class="d-grid gap-2">
+                                <a href="/mobile_redirect?token=DEBUG_TOKEN&data=test_data" 
+                                   class="btn btn-outline-primary">
+                                    Test Mobile Redirect with Sample Data
+                                </a>
+                                <a href="https://github.com/Levit513/RF-Access/releases/download/v1.0.0.0/app-debug.apk" 
+                                   class="btn btn-outline-success" target="_blank">
+                                    Direct APK Download Test
+                                </a>
+                                <button class="btn btn-outline-warning" onclick="copyDebugInfo()">
+                                    Copy Debug Info
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="mt-4">
+                            <h6>Current Issues</h6>
+                            <ul class="text-start">
+                                <li>APK may crash due to package name mismatch</li>
+                                <li>Git authentication preventing fixes from reaching GitHub</li>
+                                <li>Manual GitHub editing required for package fixes</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Populate system info
+        document.addEventListener('DOMContentLoaded', function() {
+            const userAgent = navigator.userAgent;
+            const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
+            const appUrl = 'rfaccess://open?username=debug&cardData=DEBUG_TOKEN&action=program';
+            const downloadUrl = 'https://github.com/Levit513/RF-Access/releases/download/v1.0.0.0/app-debug.apk';
+
+            document.getElementById('userAgentValue').textContent = userAgent;
+            document.getElementById('mobileValue').textContent = isMobile ? 'Yes' : 'No';
+            document.getElementById('appUrlValue').textContent = appUrl;
+            document.getElementById('downloadUrlValue').textContent = downloadUrl;
+        });
+
+        function testAppOpen() {
+            const appUrl = 'rfaccess://open?username=debug&cardData=DEBUG_TOKEN&action=program';
+            const resultDiv = document.getElementById('appOpenResult');
+            
+            resultDiv.innerHTML = '<span class="text-info">Attempting to open app...</span>';
+            
+            // Try to open app
+            window.location.href = appUrl;
+            
+            // Check if we're still here after a delay
+            setTimeout(() => {
+                resultDiv.innerHTML = '<span class="text-warning">App may not be installed or deep link failed</span>';
+            }, 2000);
+        }
+
+        function testDownload() {
+            const downloadUrl = 'https://github.com/Levit513/RF-Access/releases/download/v1.0.0.0/app-debug.apk';
+            const resultDiv = document.getElementById('downloadResult');
+            
+            resultDiv.innerHTML = '<span class="text-info">Testing download URL...</span>';
+            
+            // Test if URL is accessible
+            fetch(downloadUrl, { method: 'HEAD' })
+                .then(response => {
+                    if (response.ok) {
+                        resultDiv.innerHTML = '<span class="text-success">Download URL accessible</span>';
+                        window.open(downloadUrl, '_blank');
+                    } else {
+                        resultDiv.innerHTML = '<span class="text-danger">Download URL returns ' + response.status + '</span>';
+                    }
+                })
+                .catch(error => {
+                    resultDiv.innerHTML = '<span class="text-danger">Download test failed: ' + error.message + '</span>';
+                });
+        }
+
+        function copyDebugInfo() {
+            const debugInfo = `
+RF Access Debug Info:
+User Agent: ${navigator.userAgent}
+Mobile Detected: ${/Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)}
+Current URL: ${window.location.href}
+App URL: rfaccess://open?username=debug&cardData=DEBUG_TOKEN&action=program
+Download URL: https://github.com/Levit513/RF-Access/releases/download/v1.0.0.0/app-debug.apk
+Timestamp: ${new Date().toISOString()}
+            `.trim();
+
+            navigator.clipboard.writeText(debugInfo).then(() => {
+                alert('Debug info copied to clipboard');
+            }).catch(() => {
+                alert('Failed to copy debug info');
+            });
+        }
+    </script>
+</body>
+</html>

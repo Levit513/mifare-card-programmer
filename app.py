@@ -237,6 +237,20 @@ def distribute_program():
     
     return render_template('distribute.html', form=form)
 
+@app.route('/mobile_redirect')
+def mobile_redirect():
+    token = request.args.get('token')
+    distribution = ProgramDistribution.query.filter_by(access_token=token).first()
+    
+    if not distribution:
+        return render_template('error.html', message='Invalid program link')
+    
+    return render_template('mobile_redirect.html', token=token, distribution=distribution)
+
+@app.route('/debug_mobile_redirect')
+def debug_mobile_redirect():
+    return render_template('debug_mobile_redirect.html')
+
 @app.route('/program/<token>')
 def receive_program(token):
     # Debug logging
